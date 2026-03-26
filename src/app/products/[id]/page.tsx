@@ -101,6 +101,45 @@ export default function ProductDetailPage() {
 
   // Quick-add forms
   const [showAddDev, setShowAddDev] = useState(false);
+
+  // Manual batch entry
+  const [showManualEntry, setShowManualEntry] = useState(false);
+  const [manualBatch, setManualBatch] = useState<{batch_number:string;manufacturing_date:string;status:string;yield_percentage:string;results:Record<string,string>}>({
+    batch_number:'',manufacturing_date:'',status:'released',yield_percentage:'',results:{}
+  });
+  const [manualResult, setManualResult] = useState<{success:boolean;message:string}|null>(null);
+
+  const submitManualBatch = async () => {
+    if (!manualBatch.batch_number) return;
+    setManualResult(null);
+    try {
+      const results = Object.entries(manualBatch.results)
+        .filter(([_, v]) => v !== '' && v != null)
+        .map(([paramId, value]) => ({ parameter_id: paramId, value: Number(value) }));
+
+      const res = await fetch(`/api/products/${id}/batches`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          batch_number: manualBatch.batch_number,
+          manufacturing_date: manualBatch.manufacturing_date || null,
+          status: manualBatch.status,
+          yield_percentage: manualBatch.yield_percentage ? Number(manualBatch.yield_percentage) : null,
+          results,
+        }),
+      });
+      if (res.ok) {
+        setManualResult({ success: true, message: `✓ Batch ${manualBatch.batch_number} saved successfully` });
+        setManualBatch({ batch_number:'',manufacturing_date:'',status:'released',yield_percentage:'',results:{} });
+        await fetchData();
+      } else {
+        const err = await res.json();
+        setManualResult({ success: false, message: err.error || 'Failed to save batch' });
+      }
+    } catch (e: any) {
+      setManualResult({ success: false, message: e.message });
+    }
+  };
   const [devForm, setDevForm] = useState({ deviation_number: '', type: 'minor', description: '', root_cause: '', capa_reference: '', date_raised: '' });
 
   const addDeviation = async () => {
@@ -276,16 +315,36 @@ export default function ProductDetailPage() {
       {/* Data Tab */}
       {tab === 'data' && (
         <div className="space-y-5">
+          {/* Upload Section */}
           <div className="card p-5">
             <h3 className="text-sm font-semibold text-gray-800 mb-3">Upload Batch Data</h3>
-            <p className="text-xs text-gray-500 mb-4">
-              Upload an Excel (.xlsx) or CSV file with columns: <code className="bg-cream-100 px-1 py-0.5 rounded font-mono text-[10px]">batch_number</code>, <code className="bg-cream-100 px-1 py-0.5 rounded font-mono text-[10px]">manufacturing_date</code>, <code className="bg-cream-100 px-1 py-0.5 rounded font-mono text-[10px]">status</code>, <code className="bg-cream-100 px-1 py-0.5 rounded font-mono text-[10px]">yield_percentage</code>, and one column per parameter name matching the defined parameters.
+            <p className="text-xs text-gray-500 mb-3">
+              Upload an Excel (.xlsx) or CSV file. Column headers must match your parameter names exactly.
             </p>
+            <div className="bg-cream-100 rounded-lg p-3 mb-4 text-xs text-gray-600 space-y-1">
+              <p className="font-semibold text-gray-700">Required columns:</p>
+              <p><code className="bg-white px-1 py-0.5 rounded font-mono text-[10px]">batch_number</code> — unique batch ID</p>
+              <p><code className="bg-white px-1 py-0.5 rounded font-mono text-[10px]">manufacturing_date</code> — YYYY-MM-DD format</p>
+              <p><code className="bg-white px-1 py-0.5 rounded font-mono text-[10px]">status</code> — released / rejected / reprocessed / under_process</p>
+              <p><code className="bg-white px-1 py-0.5 rounded font-mono text-[10px]">yield_percentage</code> — final yield number</p>
+              <p className="font-semibold text-gray-700 mt-2">Parameter columns (must match names exactly):</p>
+              {product.parameters?.map((p: any) => (
+                <p key={p.id}>
+                  <code className="bg-white px-1 py-0.5 rounded font-mono text-[10px]">{p.name}</code>
+                  {p.unit && <span className="text-gray-400 ml-1">({p.unit})</span>}
+                  {p.usl != null && <span className="text-gray-400 ml-1">USL: {p.usl}</span>}
+                  {p.lsl != null && <span className="text-gray-400 ml-1">LSL: {p.lsl}</span>}
+                </p>
+              ))}
+            </div>
             <div className="flex items-center gap-3">
               <input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv" onChange={handleFileUpload} className="hidden" />
               <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="btn-primary text-xs">
-                {uploading ? 'Processing…' : '📁 Upload File'}
+                {uploading ? 'Processing…' : '📁 Upload Excel / CSV'}
               </button>
+              <a href="/templates/qreview-sample-template.xlsx" download className="btn-secondary text-xs">
+                📥 Download Sample Template
+              </a>
             </div>
             {uploadResult && (
               <div className={`mt-3 p-3 rounded-lg text-xs ${uploadResult.success ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-800'}`}>
@@ -298,6 +357,79 @@ export default function ProductDetailPage() {
                   <ul className="mt-1 space-y-0.5 text-[11px] opacity-80">
                     {uploadResult.errors.slice(0, 5).map((e: string, i: number) => <li key={i}>{e}</li>)}
                   </ul>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Manual Entry */}
+          <div className="card p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-gray-800">Add Single Batch</h3>
+              <button onClick={() => setShowManualEntry(!showManualEntry)} className="btn-ghost text-xs">
+                {showManualEntry ? '✕ Close' : '+ Manual Entry'}
+              </button>
+            </div>
+            {showManualEntry && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-4 gap-3">
+                  <div>
+                    <label className="input-label">Batch No. *</label>
+                    <input className="input text-xs font-mono" placeholder="e.g. MET-026-25" value={manualBatch.batch_number}
+                      onChange={e => setManualBatch(p => ({...p, batch_number: e.target.value}))} />
+                  </div>
+                  <div>
+                    <label className="input-label">Mfg Date</label>
+                    <input type="date" className="input text-xs" value={manualBatch.manufacturing_date}
+                      onChange={e => setManualBatch(p => ({...p, manufacturing_date: e.target.value}))} />
+                  </div>
+                  <div>
+                    <label className="input-label">Status</label>
+                    <select className="input text-xs" value={manualBatch.status}
+                      onChange={e => setManualBatch(p => ({...p, status: e.target.value}))}>
+                      <option value="released">Released</option>
+                      <option value="rejected">Rejected</option>
+                      <option value="reprocessed">Reprocessed</option>
+                      <option value="under_process">Under Process</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="input-label">Yield %</label>
+                    <input type="number" step="0.1" className="input text-xs font-mono" placeholder="e.g. 85.2"
+                      value={manualBatch.yield_percentage}
+                      onChange={e => setManualBatch(p => ({...p, yield_percentage: e.target.value}))} />
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                  {product.parameters?.map((p: any) => (
+                    <div key={p.id}>
+                      <label className="input-label">
+                        {p.name} {p.unit && <span className="text-gray-400">({p.unit})</span>}
+                      </label>
+                      <input type="number" step="any" className="input text-xs font-mono"
+                        placeholder={p.target != null ? `Target: ${p.target}` : '—'}
+                        value={manualBatch.results[p.id] || ''}
+                        onChange={e => setManualBatch(prev => ({
+                          ...prev,
+                          results: { ...prev.results, [p.id]: e.target.value }
+                        }))} />
+                      <div className="flex gap-2 text-[9px] text-gray-400 mt-0.5">
+                        {p.lsl != null && <span>LSL: {p.lsl}</span>}
+                        {p.usl != null && <span>USL: {p.usl}</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-2 pt-1">
+                  <button onClick={submitManualBatch} disabled={!manualBatch.batch_number} className="btn-primary text-xs">
+                    Save Batch
+                  </button>
+                  <button onClick={() => setShowManualEntry(false)} className="btn-ghost text-xs">Cancel</button>
+                </div>
+                {manualResult && (
+                  <p className={`text-xs mt-1 ${manualResult.success ? 'text-emerald-700' : 'text-red-600'}`}>
+                    {manualResult.message}
+                  </p>
                 )}
               </div>
             )}
