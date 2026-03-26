@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { ensureDb } from '@/lib/db';
 import { calculateCapability, calculateYieldStats, generateControlChartData, generateMRChartData } from '@/lib/stats';
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const db = getDb();
+    const db = await ensureDb();
     const product: any = db.prepare('SELECT * FROM products WHERE id = ?').get(params.id);
     if (!product) return NextResponse.json({ error: 'Product not found' }, { status: 404 });
 

@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { ensureDb } from '@/lib/db';
 import { v4 as uuid } from 'uuid';
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const db = getDb();
+    const db = await ensureDb();
     const ccs = db.prepare('SELECT * FROM change_controls WHERE product_id = ? ORDER BY created_at DESC').all(params.id);
     return NextResponse.json(ccs);
   } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 500 }); }
@@ -13,7 +13,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const body = await req.json();
-    const db = getDb();
+    const db = await ensureDb();
     const id = uuid();
     db.prepare(`
       INSERT INTO change_controls (id, product_id, cc_number, description, type, impact_assessment, effective_date, status)

@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
-import { getDb, resetAndSeed } from '@/lib/db';
+import { ensureDb, resetAndSeed } from '@/lib/db';
 
 export async function POST() {
   try {
+    await ensureDb();
     resetAndSeed();
     return NextResponse.json({ success: true, message: 'Demo data loaded successfully' });
   } catch (error: any) {

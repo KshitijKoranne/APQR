@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { ensureDb } from '@/lib/db';
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const db = getDb();
+    const db = await ensureDb();
     const product = db.prepare('SELECT * FROM products WHERE id = ?').get(params.id);
     if (!product) return NextResponse.json({ error: 'Product not found' }, { status: 404 });
 
@@ -59,7 +59,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const body = await req.json();
-    const db = getDb();
+    const db = await ensureDb();
 
     db.prepare(`
       UPDATE products SET name=?, code=?, generic_name=?, api_grade=?, batch_size=?, 
@@ -82,7 +82,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const db = getDb();
+    const db = await ensureDb();
     db.prepare('DELETE FROM products WHERE id = ?').run(params.id);
     return NextResponse.json({ success: true });
   } catch (error: any) {

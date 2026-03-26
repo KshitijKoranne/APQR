@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { ensureDb } from '@/lib/db';
 import { v4 as uuid } from 'uuid';
 
 export async function GET() {
   try {
-    const db = getDb();
+    const db = await ensureDb();
     const products = db.prepare(`
       SELECT p.*, 
         (SELECT COUNT(*) FROM batches b WHERE b.product_id = p.id) as batch_count,
@@ -20,7 +20,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const db = getDb();
+    const db = await ensureDb();
     const id = uuid();
 
     db.prepare(`
@@ -49,6 +49,7 @@ export async function POST(req: NextRequest) {
     }
 
     const product = db.prepare('SELECT * FROM products WHERE id = ?').get(id);
+    db.save();
     return NextResponse.json(product, { status: 201 });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

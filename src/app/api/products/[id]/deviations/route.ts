@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { ensureDb } from '@/lib/db';
 import { v4 as uuid } from 'uuid';
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const db = getDb();
+    const db = await ensureDb();
     const deviations = db.prepare(
       'SELECT d.*, b.batch_number FROM deviations d LEFT JOIN batches b ON d.batch_id = b.id WHERE d.product_id = ? ORDER BY d.date_raised DESC'
     ).all(params.id);
@@ -17,7 +17,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const body = await req.json();
-    const db = getDb();
+    const db = await ensureDb();
     const id = uuid();
     db.prepare(`
       INSERT INTO deviations (id, product_id, batch_id, deviation_number, type, description, root_cause, capa_reference, investigation_status, date_raised, date_closed)

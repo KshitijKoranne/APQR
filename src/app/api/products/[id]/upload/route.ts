@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { ensureDb } from '@/lib/db';
 import { v4 as uuid } from 'uuid';
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
@@ -13,7 +13,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       return NextResponse.json({ error: 'No data rows provided' }, { status: 400 });
     }
 
-    const db = getDb();
+    const db = await ensureDb();
     const parameters: any[] = db.prepare(
       'SELECT * FROM product_parameters WHERE product_id = ? ORDER BY sort_order'
     ).all(params.id);

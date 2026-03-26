@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { ensureDb } from '@/lib/db';
 import { v4 as uuid } from 'uuid';
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const db = getDb();
+    const db = await ensureDb();
     const parameters = db.prepare(
       'SELECT * FROM product_parameters WHERE product_id = ? ORDER BY sort_order, name'
     ).all(params.id);
@@ -17,7 +17,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const body = await req.json();
-    const db = getDb();
+    const db = await ensureDb();
     const id = uuid();
 
     const maxOrder: any = db.prepare(
@@ -35,6 +35,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     );
 
     const param = db.prepare('SELECT * FROM product_parameters WHERE id = ?').get(id);
+    db.save();
     return NextResponse.json(param, { status: 201 });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -44,7 +45,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const body = await req.json();
-    const db = getDb();
+    const db = await ensureDb();
 
     if (!body.param_id) {
       return NextResponse.json({ error: 'param_id required' }, { status: 400 });
@@ -72,7 +73,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     const paramId = searchParams.get('paramId');
     if (!paramId) return NextResponse.json({ error: 'paramId required' }, { status: 400 });
 
-    const db = getDb();
+    const db = await ensureDb();
     db.prepare('DELETE FROM product_parameters WHERE id = ? AND product_id = ?').run(paramId, params.id);
     return NextResponse.json({ success: true });
   } catch (error: any) {

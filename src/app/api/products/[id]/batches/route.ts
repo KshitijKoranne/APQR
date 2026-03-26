@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { ensureDb } from '@/lib/db';
 import { v4 as uuid } from 'uuid';
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const db = getDb();
+    const db = await ensureDb();
     const batches = db.prepare(`
       SELECT b.*, 
         (SELECT COUNT(*) FROM batch_results br WHERE br.batch_id = b.id) as result_count
@@ -34,7 +34,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const body = await req.json();
-    const db = getDb();
+    const db = await ensureDb();
     const batchId = uuid();
 
     db.prepare(`
@@ -64,6 +64,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
 
     const batch = db.prepare('SELECT * FROM batches WHERE id = ?').get(batchId);
+    db.save();
     return NextResponse.json(batch, { status: 201 });
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -76,7 +77,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     const batchId = searchParams.get('batchId');
     if (!batchId) return NextResponse.json({ error: 'batchId required' }, { status: 400 });
 
-    const db = getDb();
+    const db = await ensureDb();
     db.prepare('DELETE FROM batches WHERE id = ? AND product_id = ?').run(batchId, params.id);
     return NextResponse.json({ success: true });
   } catch (error: any) {
