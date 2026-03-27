@@ -5,6 +5,7 @@ import Link from 'next/link';
 export const metadata: Metadata = {
   title: 'QReview — APQR for Pharma API',
   description: 'Annual Product Quality Review software for pharmaceutical API manufacturers',
+  icons: { icon: '/favicon.svg' },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

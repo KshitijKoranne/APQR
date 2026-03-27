@@ -122,7 +122,32 @@ let dbInstance: DbWrapper | null = null;
 let initPromise: Promise<DbWrapper> | null = null;
 
 async function initDb(): Promise<DbWrapper> {
-  const SQL = await initSqlJs();
+  let SQL: any;
+
+  // Try WASM build first, fall back to ASM.js (pure JS, no WASM needed)
+  try {
+    const sqlWasmPath = path.join(
+      path.dirname(require.resolve('sql.js')),
+      'sql-wasm.wasm'
+    );
+
+    if (fs.existsSync(sqlWasmPath)) {
+      // Load WASM from file system directly as buffer
+      const wasmBinary = fs.readFileSync(sqlWasmPath);
+      SQL = await initSqlJs({ wasmBinary });
+    } else {
+      throw new Error('WASM file not found, using fallback');
+    }
+  } catch {
+    // Fallback: use the ASM.js build (pure JavaScript, works everywhere)
+    try {
+      const initSqlAsmJs = require('sql.js/dist/sql-asm.js');
+      SQL = await initSqlAsmJs();
+    } catch {
+      // Last resort: try default init
+      SQL = await initSqlJs();
+    }
+  }
 
   let raw: SqlJsDatabase;
 
