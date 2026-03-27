@@ -1,30 +1,19 @@
+declare module 'sql.js/dist/sql-asm.js' {
+  function initSqlJs(): Promise<{
+    Database: new (data?: ArrayLike<number> | Buffer | null) => any;
+  }>;
+  export = initSqlJs;
+}
+
 declare module 'sql.js' {
   interface Database {
     run(sql: string, params?: any[]): void;
     exec(sql: string): { columns: string[]; values: any[][] }[];
-    prepare(sql: string): Statement;
+    prepare(sql: string): any;
     export(): Uint8Array;
     close(): void;
     getRowsModified(): number;
   }
-
-  interface Statement {
-    bind(params?: any[]): boolean;
-    step(): boolean;
-    getAsObject(): Record<string, any>;
-    free(): boolean;
-    reset(): void;
-  }
-
-  interface SqlJsStatic {
-    Database: new (data?: ArrayLike<number> | Buffer | null) => Database;
-  }
-
-  export { Database, Statement, SqlJsStatic };
-  export default function initSqlJs(config?: any): Promise<SqlJsStatic>;
-}
-
-declare module 'sql.js/dist/sql-asm.js' {
-  import type { SqlJsStatic } from 'sql.js';
-  export default function initSqlJs(config?: any): Promise<SqlJsStatic>;
+  export { Database };
+  export default function initSqlJs(config?: any): Promise<any>;
 }
